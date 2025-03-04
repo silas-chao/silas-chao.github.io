@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Vehicle Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .nav {
+            background-color: #333;
+            overflow: hidden;
+        }
+
+        .nav a {
+            float: left;
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+
+        .nav a:hover {
+            background-color: #575757;
+        }
+
+        .page {
+            padding: 20px;
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .status-card {
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .status-card h3 {
+            margin: 0;
+            color: #2196F3;
+        }
+
+        .status-card p {
+            margin: 5px 0;
+            color: #555;
+        }
+
+        @media (max-width: 600px) {
+            .nav a {
+                float: none;
+                width: 100%;
+            }
+        }
+
+        .input-group {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            max-width: 500px;
+        }
+
+        /* 输入框样式 */
+        .input-field {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* 按钮样式 */
+        .submit-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #1976D2;
+        }
+
+        /* 结果展示样式 */
+        .result-box {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="nav">
+        <a href="index.html">Home Page</a>
+        <a href="people.html">User Info</a>
+        <a href="vehicles.html">Vehicle Control</a>
+        <a href="drive.html">Drive</a>
+    </nav>
+
+    <!-- 在原有HTML的.page div内添加以下内容 -->
+    <div class="page active">
+        <h1>DashBoard Of Vehicles</h1>
+
+        <!-- 车辆状态显示 -->
+        <div id="vehicleList" class="vehicle-list">
+            <!-- 动态生成的车辆卡片 -->
+            <div class="status-card example-card">
+                <h3>Vehicle Name: DemoCar</h3>
+                <p>Type: Sedan</p>
+                <p>Location: Parking Lot A</p>
+                <p>Brand: Toyota</p>
+                <p>Model: Camry</p>
+                <p>Weight: 1500 kg</p>
+                <p>License Plate: ABC123</p>
+                <p>Max Capacity: 5 persons</p>
+            </div>
+        </div>
+
+        <!-- 操作表单区域 -->
+        <h2>Vehicle Operations</h2>
+
+        <!-- Change Brand -->
+        <div class="input-group">
+            <input type="text" class="input-field" id="changeBrandId" placeholder="Vehicle ID">
+            <input type="text" class="input-field" id="changeBrandValue" placeholder="New Brand">
+            <button class="submit-btn" onclick="handleChangeBrand()">Change Brand</button>
+        </div>
+
+        <!-- Change Model -->
+        <div class="input-group">
+            <input type="text" class="input-field" id="changeModelId" placeholder="Vehicle ID">
+            <input type="text" class="input-field" id="changeModelValue" placeholder="New Model">
+            <button class="submit-btn" onclick="handleChangeModel()">Change Model</button>
+        </div>
+
+        <!-- Change Weight -->
+        <div class="input-group">
+            <input type="text" class="input-field" id="changeWeightId" placeholder="Vehicle ID">
+            <input type="number" class="input-field" id="changeWeightValue" placeholder="New Weight (kg)">
+            <button class="submit-btn" onclick="handleChangeWeight()">Change Weight</button>
+        </div>
+
+        <!-- Change License Plate -->
+        <div class="input-group">
+            <input type="text" class="input-field" id="changeLicenseId" placeholder="Vehicle ID">
+            <input type="text" class="input-field" id="changeLicenseValue" placeholder="New License Plate">
+            <button class="submit-btn" onclick="handleChangeLicense()">Change License</button>
+        </div>
+
+        <!-- Change Max Capacity -->
+        <div class="input-group">
+            <input type="text" class="input-field" id="changeCapacityId" placeholder="Vehicle ID">
+            <input type="number" class="input-field" id="changeCapacityValue" placeholder="New Max Capacity">
+            <button class="submit-btn" onclick="handleChangeCapacity()">Change Capacity</button>
+        </div>
+
+        </br>
+        <!-- Add Vehicle -->
+        <div class="input-group" style="flex-wrap: wrap; gap: 8px;">
+            <input type="text" class="input-field" id="addVehicleBrand" placeholder="Brand">
+            <input type="text" class="input-field" id="addVehicleModel" placeholder="Model">
+            <input type="number" class="input-field" id="addVehicleWeight" placeholder="Weight (kg)">
+            <input type="text" class="input-field" id="addVehicleLicense" placeholder="License Plate">
+            <input type="number" class="input-field" id="addVehicleCapacity" placeholder="Max Capacity">
+            <button class="submit-btn" onclick="handleAddVehicle()">Add Vehicle</button>
+        </div>
+        </br>
+        <!-- Delete Vehicle -->
+        <div class="input-group">
+            <input type="text" class="input-field" id="deleteVehicleId" placeholder="Vehicle ID">
+            <button class="submit-btn" onclick="handleDeleteVehicle()">Delete Vehicle</button>
+        </div>
+
+        <!-- 结果展示 -->
+        <div class="result-box" id="resultBox"></div>
+    </div>
+
+    <script>
+        // 新增操作函数
+        async function handleChangeBrand() {
+            const vehicleId = document.getElementById('changeBrandId').value;
+            const newValue = document.getElementById('changeBrandValue').value;
+            const jData = await InvokeRequest({
+                cmd: 'ChangeBrand',
+                VehicleID: vehicleId,
+                NewBrand: newValue
+            });
+            showResult(jData);
+        }
+
+        async function handleChangeModel() {
+            const vehicleId = document.getElementById('changeModelId').value;
+            const newValue = document.getElementById('changeModelValue').value;
+            const jData = await InvokeRequest({
+                cmd: 'ChangeModel',
+                VehicleID: vehicleId,
+                NewModel: newValue
+            });
+            showResult(jData);
+        }
+
+        async function handleChangeWeight() {
+            const vehicleId = document.getElementById('changeWeightId').value;
+            const newValue = document.getElementById('changeWeightValue').value;
+            const jData = await InvokeRequest({
+                cmd: 'ChangeWeight',
+                VehicleID: vehicleId,
+                NewWeight: newValue
+            });
+            showResult(jData);
+        }
+
+        async function handleChangeLicense() {
+            const vehicleId = document.getElementById('changeLicenseId').value;
+            const newValue = document.getElementById('changeLicenseValue').value;
+            const jData = await InvokeRequest({
+                cmd: 'ChangeLicensePlate',
+                VehicleID: vehicleId,
+                NewLicense: newValue
+            });
+            showResult(jData);
+        }
+
+        async function handleChangeCapacity() {
+            const vehicleId = document.getElementById('changeCapacityId').value;
+            const newValue = document.getElementById('changeCapacityValue').value;
+            const jData = await InvokeRequest({
+                cmd: 'ChangeMaxCapacity',
+                VehicleID: vehicleId,
+                NewCapacity: newValue
+            });
+            showResult(jData);
+        }
+
+        async function handleAddVehicle() {
+            const newVehicle = {
+                Brand: document.getElementById('addVehicleBrand').value,
+                Model: document.getElementById('addVehicleModel').value,
+                Weight: document.getElementById('addVehicleWeight').value,
+                License: document.getElementById('addVehicleLicense').value,
+                Capacity: document.getElementById('addVehicleCapacity').value
+            };
+            const jData = await InvokeRequest({
+                cmd: 'AddVehicle',
+                Data: newVehicle
+            });
+            showResult(jData);
+        }
+
+        async function handleDeleteVehicle() {
+            const vehicleId = document.getElementById('deleteVehicleId').value;
+            const jData = await InvokeRequest({
+                cmd: 'DeleteVehicle',
+                VehicleID: vehicleId
+            });
+            showResult(jData);
+        }
+
+        // 结果展示函数
+        function showResult(jData) {
+            const resultBox = document.getElementById('resultBox');
+            if (jData.statuses === "Success") {
+                resultBox.textContent = `success: ${jData.message || ''}`;
+                resultBox.style.color = 'green';
+                GetVehicles(); // 刷新车辆列表
+            } else {
+                resultBox.textContent = `fail: ${jData.message || 'unexpected err'}`;
+                resultBox.style.color = 'red';
+            }
+        }
+
+        // 获取车辆列表
+        async function GetVehicles() {
+            const jData = await InvokeRequest({ cmd: 'GetVehicles' });
+            if (jData.statuses === "Success") {
+                const container = document.getElementById('vehicleList');
+                container.innerHTML = '';
+                jData.Data.forEach(vehicle => {
+                    container.innerHTML += `
+                    <div class="status-card">
+                        <h3>${vehicle.Name}</h3>
+                        <p>Type: ${vehicle.Type}</p>
+                        <p>Location: ${vehicle.Location}</p>
+                        <p>Brand: ${vehicle.Brand}</p>
+                        <p>Model: ${vehicle.Model}</p>
+                        <p>Weight: ${vehicle.Weight}kg</p>
+                        <p>License: ${vehicle.LicensePlate}</p>
+                        <p>Capacity: ${vehicle.MaxCapacity}人</p>
+                    </div>
+                `;
+                });
+            }
+        }
+
+        // 初始化时获取车辆列表
+        document.addEventListener('DOMContentLoaded', function () {
+            GetVehicles();
+        });
+    </script>
+</body>
+
+</html>
