@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <title>People Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+
+        .nav {
+            background-color: #333;
+            overflow: hidden;
+        }
+
+        .nav a {
+            float: left;
+            display: block;
+            color: white;
+            text-align: center;
+            padding: 14px 16px;
+            text-decoration: none;
+        }
+
+        .nav a:hover {
+            background-color: #575757;
+        }
+
+        .page {
+            padding: 20px;
+            max-width: 800px;
+            margin: 20px auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+
+        .status-card {
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .status-card h3 {
+            margin: 0;
+            color: #2196F3;
+        }
+
+        .status-card p {
+            margin: 5px 0;
+            color: #555;
+        }
+
+        @media (max-width: 600px) {
+            .nav a {
+                float: none;
+                width: 100%;
+            }
+        }
+
+        .input-group {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            max-width: 500px;
+        }
+
+        /* 输入框样式 */
+        .input-field {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        /* 按钮样式 */
+        .submit-btn {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .submit-btn:hover {
+            background-color: #1976D2;
+        }
+
+        .result-box {
+            margin-top: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            border: 1px solid #eee;
+        }
+
+        .list-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+
+        /* 列表项样式 */
+        .list-item {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            transition: background 0.3s;
+        }
+
+        .list-item:hover {
+            background-color: #f8f9fa;
+        }
+
+        /* 输入组样式 */
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .input-field {
+            flex: 1;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* 操作按钮样式 */
+        .action-btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .add-btn {
+            background-color: #4CAF50;
+            color: white;
+        }
+
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+            margin-left: auto;
+        }
+
+        /* 空状态提示 */
+        .empty-state {
+            color: #666;
+            text-align: center;
+            padding: 20px;
+        }
+    </style>
+</head>
+
+<body>
+    <nav class="nav">
+        <a href="index.html">Home Page</a>
+        <a href="people.html">User Info</a>
+        <a href="vehicles.html">Vehicle Control</a>
+        <a href="drive.html">Drive</a>
+    </nav>
+
+    <div class="list-container">
+        <div class="input-group">
+            <input type="text" class="input-field" id="itemInput" placeholder="input">
+            <button class="action-btn add-btn" onclick="addListItem(-1)">add people</button>
+        </div>
+
+        <div id="listContent">
+            <div class="empty-state">No item yet</div>
+        </div>
+    </div>
+
+    <script>
+        // 添加列表项函数（修改后）
+        async function addListItem(text = -1) {
+            const input = document.getElementById('itemInput');
+            const listContainer = document.getElementById('listContent');
+            let content = text === -1 ? input.value.trim() : text;
+
+            // 输入验证
+            if (content === "") {
+                alert('Please input valid data');
+                input.focus();
+                return false;
+            }
+
+            try {
+                // 先进行服务端添加
+                const addSuccess = await AddPeople(content);
+                if (!addSuccess) return false;
+
+                // 更新UI
+                if (listContainer.querySelector('.empty-state')) {
+                    listContainer.innerHTML = '';
+                }
+
+                const newItem = document.createElement('div');
+                newItem.className = 'list-item';
+                newItem.innerHTML = `
+                    <span>${content}</span>
+                    <button class="action-btn delete-btn" onclick="deleteListItem(this)">Remove</button>
+                `;
+
+                listContainer.appendChild(newItem);
+                input.value = '';
+                return true;
+            } catch (error) {
+                console.error('Add item failed:', error);
+                return false;
+            }
+        }
+
+        // 删除行函数（优化后）
+        async function deleteListItem(button) {
+            const item = button.closest('.list-item');
+            const content = item.querySelector('span').textContent;
+
+            try {
+                // 先执行服务端删除
+                const deleteSuccess = await DelPeople(content);
+                if (!deleteSuccess) return;
+
+                // 更新UI
+                item.remove();
+                const listContainer = document.getElementById('listContent');
+                if (listContainer.children.length === 0) {
+                    listContainer.innerHTML = '<div class="empty-state">No item yet</div>';
+                }
+            } catch (error) {
+                console.error('Delete item failed:', error);
+            }
+        }
+
+        async function GetListOfPeople() {
+            try {
+                const rJson = await InvokeRequest({ cmd: "GetListOfPeople" });
+
+                if (rJson.statuses === "Success") {
+                    const listContainer = document.getElementById('listContent');
+                    listContainer.innerHTML = '';
+
+                    if (!rJson.data || rJson.data === "") {
+                        listContainer.innerHTML = '<div class="empty-state">No item yet</div>';
+                        return;
+                    }
+
+                    const TArray = rJson.data.split("|");
+                    for (const x of TArray) {
+                        if (x.trim()) {
+                            await addListItem(x.trim());
+                        }
+                    }
+                } else {
+                    handleError(rJson.statuses, 'get List Of People');
+                }
+            } catch (error) {
+                console.error('Get list failed:', error);
+            }
+        }
+
+        async function AddPeople(content) {
+            try {
+                const rJson = await InvokeRequest({
+                    cmd: "AddPeople",
+                    Name: content
+                });
+
+                if (rJson.statuses === "Success") {
+                    return true;
+                }
+                handleError(rJson.statuses, 'add people');
+                return false;
+            } catch (error) {
+                console.error('Add failed:', error);
+                return false;
+            }
+        }
+
+        async function DelPeople(content) {
+            try {
+                const rJson = await InvokeRequest({
+                    cmd: "DelPeople",
+                    Name: content
+                });
+
+                if (rJson.statuses === "Success") {
+                    return true;
+                }
+                handleError(rJson.statuses, 'delete people');
+                return false;
+            } catch (error) {
+                console.error('Delete failed:', error);
+                return false;
+            }
+        }
+
+        function handleError(status, operation) {
+            const messageMap = {
+                Timeout: `Operation timeout: ${operation}`,
+                Fail: `Operation failed: ${operation}`,
+                default: `Unknown error: ${operation}`
+            };
+
+            alert(messageMap[status] || messageMap.default);
+        }
+
+        async function InvokeRequest(data, timeout = 5000) {
+            const apiUrl = 'http://192.168.0.1/api';
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                    signal: controller.signal
+                });
+
+                const result = await response.json();
+                clearTimeout(timeoutId);
+                return result;
+            } catch (error) {
+                return {
+                    statuses: error.name === "AbortError" ? "Timeout" : "Fail"
+                };
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            GetListOfPeople();
+        });
+    </script>
+</body>
+
+</html>
