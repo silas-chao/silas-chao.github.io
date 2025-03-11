@@ -1,4 +1,13 @@
 # CrashCollisionSOS.github.io
+
+Our lovely team members!: <br/>
+ 1. Team lead/software: Shalom
+ 2. Hardware design: Alex
+ 3. HTML design: Eric
+ 4. Github: Silas
+
+
+
 An emergency response system that automatically calls emergency services in a collision. <br/>
 * This is an enhancement of the Mercedes-Benz e-Call system, known as "Collision:Recon-Analysis-SOS".
 * In this prototype, the system automatically notifies emergency services after a car accident.
