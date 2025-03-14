@@ -15,3 +15,6 @@ An emergency response system that automatically calls emergency services in a co
 
 ![2014-mercedes-e-class-named-iihs-top-safety-pick-plus](https://github.com/user-attachments/assets/9eb834b7-1a1e-4045-b407-7f2c002fbd46)
 
+Instructions on How to Use:
+
+Resource Used to Build Product:
