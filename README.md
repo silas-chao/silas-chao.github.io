@@ -6,7 +6,7 @@ Our lovely team members!: <br/>
  3. HTML design: Eric
  4. Github: Silas
 
-
+Purpose:
 
 An emergency response system that automatically calls emergency services in a collision. <br/>
 * This is an enhancement of the Mercedes-Benz e-Call system, known as "Collision:Recon-Analysis-SOS".
