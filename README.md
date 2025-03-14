@@ -17,4 +17,4 @@ An emergency response system that automatically calls emergency services in a co
 
 Instructions on How to Use:
 
-Resource Used to Build Product:
+Resources Used to Build Product:
