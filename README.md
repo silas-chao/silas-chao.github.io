@@ -6,6 +6,8 @@ Our lovely team members!: <br/>
  3. HTML design: Eric
  4. Github: Silas
 
+Blueprint(Alex put it here):
+
 Purpose:
 
 An emergency response system that automatically calls emergency services in a collision. <br/>
