@@ -21,4 +21,4 @@ Instructions on How to Use:
 
 Resources Used to Build Product:
 
-Link to App: https://github.com/silas-chao/silas-chao.github.io/htmlPart
+[Link to App](https://github.com/silas-chao/silas-chao.github.io/htmlPart)
