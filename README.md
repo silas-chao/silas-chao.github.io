@@ -18,3 +18,6 @@ An emergency response system that automatically calls emergency services in a co
 Instructions on How to Use:
 
 Resources Used to Build Product:
+
+Link to App:
+https://github.com/silas-chao/silas-chao.github.io/blob/main/htmlPart/index.html
