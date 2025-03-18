@@ -20,4 +20,4 @@ Instructions on How to Use:
 Resources Used to Build Product:
 
 Link to App:
-https://github.com/silas-chao/silas-chao.github.io/blob/main/htmlPart/index.html
+<a href = "https://github.com/silas-chao/silas-chao.github.io/blob/main/htmlPart/index.html">
