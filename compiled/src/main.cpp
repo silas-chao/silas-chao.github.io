@@ -1,8 +1,11 @@
 #include <Wire.h>
+#include <WebServer.h>
 #include <Arduino.h>
 #include <LiquidCrystal_I2C.h>
+#include <ESPAsyncWebServer.h>
 #include <WiFi.h>
-#include <WebServer.h>
+#include <ArduinoJson.h>
+
 #include <iostream>
 using namespace std;
 // Setup variables
@@ -13,15 +16,18 @@ struct vehicle
     String brand;
     String model;
     float weight;
-    int LPlate;
+    int LPlate; // 车牌号（整数形式）
     int maxCapacity;
+    String status; // 添加状态字段："available" 或 "in_use"
 };
 
 struct person
 {
+    String name; // 添加姓名字段以支持API
     float weight;
     float height;
     int age;
+    String id; // 添加ID字段以支持唯一标识
 };
 
 struct worldCoords
@@ -37,12 +43,12 @@ struct worldCoords
         z = newZ;
     }
 };
-
 worldCoords locus;
 // All vehicles and people possible
 vehicle vehicles[10];
 person people[25];
-
+int vehicleCount = 0;
+int peopleCount = 0;
 // Current vehicle
 vehicle currentCar = vehicles[picked];
 
@@ -69,7 +75,7 @@ LiquidCrystal_I2C lcd(LCD_ADDRESS, LCD_COLUMNS, LCD_ROWS);
 
 // Wi-Fi Configuration
 const char *ssid = "GitCommited";
-const char *password = "GitoutGitoutGitoutofmyhead";
+const char *password = "ABCDEFGH123";
 
 WebServer server(80);
 
@@ -98,7 +104,7 @@ void lcd_init()
 // Function to handle button press events
 void handle_button_press()
 {
-    bool leftButtonPressed = digitalRead(LEFT_BUTTON_PIN) == LOW;
+    bool leftButtonPressed = digitalRead(14) == LOW;
     bool rightButtonPressed = digitalRead(RIGHT_BUTTON_PIN) == LOW;
     if (leftButtonPressed || rightButtonPressed)
     {
@@ -142,6 +148,15 @@ void i2c_scanner()
         }
     }
     Serial.println("I2C scan complete.");
+}
+
+String replaceIP(String input)
+{
+    IPAddress currentIP = WiFi.softAPIP(); // 获取当前IP
+    String ipStr = currentIP.toString();   // 转换为字符串，如 "192.168.4.1"
+    String oldIP = "192.168.0.1";
+    input.replace(oldIP, ipStr); // 替换所有 "192.168.0.1"
+    return input;
 }
 
 // HTML handler function
@@ -268,7 +283,7 @@ void handleOfIndex()
                 <a href="vehicles.html">Vehicle Control</a>
                 <a href="drive.html">Drive</a>
             </nav>
-        
+
             <div class="page active">
                 <h1>DashBoard</h1>
                 <div class="status-card">
@@ -277,37 +292,36 @@ void handleOfIndex()
                     <p id="UName">User Name: Still Pulling Data...</p>
                 </div>
             </div>
-        
+
             <script>
                 async function GetOnlineVehicleNumber() {
                     const jData = await InvokeRequest({
                         cmd: 'GetOnlineVehicleNumber'
-                    })
-                    if (jData.statuses == "Timeout") {
+                    });
+                    if (jData.statuses === "Timeout") {
                         document.getElementById('OLLable').textContent = "Online Vehicle: Timeout";
                         throw new Error('Network response was not ok');
-                    }
-                    else if (jData.statuses == "Fail") {
-                        document.getElementById('OLLable').textContent = "Online Vehicle: Err";
+                    } else if (jData.statuses !== "Fail") {
+                        document.getElementById('OLLable').textContent = `Online Vehicle: ${jData.data}`; // 修复为小写data
                     } else {
-                        document.getElementById('OLLable').textContent = `Online Vehicle: ${jData.Data}`;
+                        document.getElementById('OLLable').textContent = "Online Vehicle: Err";
                     }
                 }
-        
+
                 async function GetUserName() {
                     const jData = await InvokeRequest({
                         cmd: 'GetUserName'
-                    })
-                    if (jData.statuses == "Timeout") {
+                    });
+                    if (jData.statuses === "Timeout") {
                         document.getElementById('UName').textContent = "User Name: Timeout";
                         throw new Error('Network response was not ok');
-                    } else if (jData.statuses == "Fail") {
-                        document.getElementById('UName').textContent = "User Name: Err";
+                    } else if (jData.statuses !== "Fail") {
+                        document.getElementById('UName').textContent = `User Name: ${jData.data}`; // 修复为小写data
                     } else {
-                        document.getElementById('UName').textContent = `User Name: ${jData.Data}`;
+                        document.getElementById('UName').textContent = "User Name: Err";
                     }
                 }
-        
+
                 async function InvokeRequest(data, timeout = 5000) {
                     const apiUrl = 'http://192.168.0.1/api';
                     const controller = new AbortController();
@@ -323,9 +337,7 @@ void handleOfIndex()
                         clearTimeout(timeoutId);
                         return result;
                     } catch (error) {
-                        var rJson = {
-                            statuses: ""
-                        };
+                        var rJson = { statuses: "" };
                         if (error.name === "AbortError") {
                             rJson.statuses = "Timeout";
                         } else {
@@ -334,7 +346,7 @@ void handleOfIndex()
                         return rJson;
                     }
                 }
-        
+
                 document.addEventListener('DOMContentLoaded', function () {
                     GetOnlineVehicleNumber();
                     GetUserName();
@@ -344,7 +356,7 @@ void handleOfIndex()
         
         </html>
         )";
-    server.send(200, "text/html", html.c_str());
+    server.send(200, "text/html", replaceIP(html.c_str()));
     cout << "User accessed index.html" << endl;
 }
 
@@ -533,49 +545,46 @@ void handleOfPeople()
                 <a href="vehicles.html">Vehicle Control</a>
                 <a href="drive.html">Drive</a>
             </nav>
-        
+
             <div class="list-container">
                 <div class="input-group">
                     <input type="text" class="input-field" id="itemInput" placeholder="input">
                     <button class="action-btn add-btn" onclick="addListItem(-1)">add people</button>
                 </div>
-        
+
                 <div id="listContent">
                     <div class="empty-state">No item yet</div>
                 </div>
             </div>
-        
+
             <script>
-                // 添加列表项函数（修改后）
+                // 添加列表项函数
                 async function addListItem(text = -1) {
                     const input = document.getElementById('itemInput');
                     const listContainer = document.getElementById('listContent');
                     let content = text === -1 ? input.value.trim() : text;
-        
-                    // 输入验证
+
                     if (content === "") {
                         alert('Please input valid data');
                         input.focus();
                         return false;
                     }
-        
+
                     try {
-                        // 先进行服务端添加
                         const addSuccess = await AddPeople(content);
                         if (!addSuccess) return false;
-        
-                        // 更新UI
+
                         if (listContainer.querySelector('.empty-state')) {
                             listContainer.innerHTML = '';
                         }
-        
+
                         const newItem = document.createElement('div');
                         newItem.className = 'list-item';
                         newItem.innerHTML = `
                             <span>${content}</span>
                             <button class="action-btn delete-btn" onclick="deleteListItem(this)">Remove</button>
                         `;
-        
+
                         listContainer.appendChild(newItem);
                         input.value = '';
                         return true;
@@ -584,18 +593,16 @@ void handleOfPeople()
                         return false;
                     }
                 }
-        
-                // 删除行函数（优化后）
+
+                // 删除列表项函数
                 async function deleteListItem(button) {
                     const item = button.closest('.list-item');
                     const content = item.querySelector('span').textContent;
-        
+
                     try {
-                        // 先执行服务端删除
                         const deleteSuccess = await DelPeople(content);
                         if (!deleteSuccess) return;
-        
-                        // 更新UI
+
                         item.remove();
                         const listContainer = document.getElementById('listContent');
                         if (listContainer.children.length === 0) {
@@ -605,85 +612,90 @@ void handleOfPeople()
                         console.error('Delete item failed:', error);
                     }
                 }
-        
+
+                // 获取人员列表
                 async function GetListOfPeople() {
                     try {
                         const rJson = await InvokeRequest({ cmd: "GetListOfPeople" });
-        
-                        if (rJson.statuses === "Success") {
+
+                        // 后端返回格式：{"data": "name1|name2|name3"}
+                        if (rJson.data) {
                             const listContainer = document.getElementById('listContent');
                             listContainer.innerHTML = '';
-        
-                            if (!rJson.data || rJson.data === "") {
+
+                            if (rJson.data === "") {
                                 listContainer.innerHTML = '<div class="empty-state">No item yet</div>';
                                 return;
                             }
-        
+
                             const TArray = rJson.data.split("|");
                             for (const x of TArray) {
                                 if (x.trim()) {
-                                    await addListItem(x.trim());
+                                    await addListItem(x.trim()); // 使用addListItem添加，避免重复逻辑
                                 }
                             }
-                        } else {
-                            handleError(rJson.statuses, 'get List Of People');
                         }
                     } catch (error) {
                         console.error('Get list failed:', error);
                     }
                 }
-        
+
+                // 添加人员
                 async function AddPeople(content) {
                     try {
                         const rJson = await InvokeRequest({
                             cmd: "AddPeople",
                             Name: content
                         });
-        
+
+                        // 后端返回格式：{"statuses": "Success"} 或 {"statuses": "Fail"}
                         if (rJson.statuses === "Success") {
                             return true;
                         }
-                        handleError(rJson.statuses, 'add people');
+                        handleError(rJson.statuses || 'Fail', 'add people');
                         return false;
                     } catch (error) {
                         console.error('Add failed:', error);
                         return false;
                     }
                 }
-        
+
+                // 删除人员
                 async function DelPeople(content) {
                     try {
                         const rJson = await InvokeRequest({
                             cmd: "DelPeople",
                             Name: content
                         });
-        
+
+                        // 后端返回格式：{"statuses": "Success"} 或 {"statuses": "Fail"}
                         if (rJson.statuses === "Success") {
                             return true;
                         }
-                        handleError(rJson.statuses, 'delete people');
+                        handleError(rJson.statuses || 'Fail', 'delete people');
                         return false;
                     } catch (error) {
                         console.error('Delete failed:', error);
                         return false;
                     }
                 }
-        
+
+                // 错误处理
                 function handleError(status, operation) {
                     const messageMap = {
                         Timeout: `Operation timeout: ${operation}`,
                         Fail: `Operation failed: ${operation}`,
                         default: `Unknown error: ${operation}`
                     };
-        
                     alert(messageMap[status] || messageMap.default);
                 }
-        
+
+                // 发送请求
                 async function InvokeRequest(data, timeout = 5000) {
-                    const apiUrl = 'http://192.168.0.1/api';
+                    const apiUrl = 'http://192.168.0.1/api'; // 保留不变，由程序处理
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), timeout);
-        
+
                     try {
                         const response = await fetch(apiUrl, {
                             method: 'POST',
@@ -691,7 +703,7 @@ void handleOfPeople()
                             body: JSON.stringify(data),
                             signal: controller.signal
                         });
-        
+
                         const result = await response.json();
                         clearTimeout(timeoutId);
                         return result;
@@ -701,7 +713,7 @@ void handleOfPeople()
                         };
                     }
                 }
-        
+
                 document.addEventListener('DOMContentLoaded', function () {
                     GetListOfPeople();
                 });
@@ -710,7 +722,7 @@ void handleOfPeople()
         
         </html>
         )html_delimiter";
-    server.send(200, "text/html", html.c_str());
+    server.send(200, "text/html", replaceIP(html.c_str()));
     cout << "User accessed people.html" << endl;
 }
 
@@ -837,14 +849,11 @@ void handleOfVehicles()
                 <a href="vehicles.html">Vehicle Control</a>
                 <a href="drive.html">Drive</a>
             </nav>
-        
-            <!-- 在原有HTML的.page div内添加以下内容 -->
+
             <div class="page active">
                 <h1>DashBoard Of Vehicles</h1>
-        
-                <!-- 车辆状态显示 -->
+
                 <div id="vehicleList" class="vehicle-list">
-                    <!-- 动态生成的车辆卡片 -->
                     <div class="status-card example-card">
                         <h3>Vehicle Name: DemoCar</h3>
                         <p>Type: Sedan</p>
@@ -856,47 +865,40 @@ void handleOfVehicles()
                         <p>Max Capacity: 5 persons</p>
                     </div>
                 </div>
-        
-                <!-- 操作表单区域 -->
+
                 <h2>Vehicle Operations</h2>
-        
-                <!-- Change Brand -->
+
                 <div class="input-group">
                     <input type="text" class="input-field" id="changeBrandId" placeholder="Vehicle ID">
                     <input type="text" class="input-field" id="changeBrandValue" placeholder="New Brand">
                     <button class="submit-btn" onclick="handleChangeBrand()">Change Brand</button>
                 </div>
-        
-                <!-- Change Model -->
+
                 <div class="input-group">
                     <input type="text" class="input-field" id="changeModelId" placeholder="Vehicle ID">
                     <input type="text" class="input-field" id="changeModelValue" placeholder="New Model">
                     <button class="submit-btn" onclick="handleChangeModel()">Change Model</button>
                 </div>
-        
-                <!-- Change Weight -->
+
                 <div class="input-group">
                     <input type="text" class="input-field" id="changeWeightId" placeholder="Vehicle ID">
                     <input type="number" class="input-field" id="changeWeightValue" placeholder="New Weight (kg)">
                     <button class="submit-btn" onclick="handleChangeWeight()">Change Weight</button>
                 </div>
-        
-                <!-- Change License Plate -->
+
                 <div class="input-group">
                     <input type="text" class="input-field" id="changeLicenseId" placeholder="Vehicle ID">
                     <input type="text" class="input-field" id="changeLicenseValue" placeholder="New License Plate">
                     <button class="submit-btn" onclick="handleChangeLicense()">Change License</button>
                 </div>
-        
-                <!-- Change Max Capacity -->
+
                 <div class="input-group">
                     <input type="text" class="input-field" id="changeCapacityId" placeholder="Vehicle ID">
                     <input type="number" class="input-field" id="changeCapacityValue" placeholder="New Max Capacity">
                     <button class="submit-btn" onclick="handleChangeCapacity()">Change Capacity</button>
                 </div>
-        
+
                 </br>
-                <!-- Add Vehicle -->
                 <div class="input-group" style="flex-wrap: wrap; gap: 8px;">
                     <input type="text" class="input-field" id="addVehicleBrand" placeholder="Brand">
                     <input type="text" class="input-field" id="addVehicleModel" placeholder="Model">
@@ -906,21 +908,35 @@ void handleOfVehicles()
                     <button class="submit-btn" onclick="handleAddVehicle()">Add Vehicle</button>
                 </div>
                 </br>
-                <!-- Delete Vehicle -->
                 <div class="input-group">
                     <input type="text" class="input-field" id="deleteVehicleId" placeholder="Vehicle ID">
                     <button class="submit-btn" onclick="handleDeleteVehicle()">Delete Vehicle</button>
                 </div>
-        
-                <!-- 结果展示 -->
+
                 <div class="result-box" id="resultBox"></div>
             </div>
-        
+
             <script>
-                // 新增操作函数
+                // 输入验证函数
+                function validateInput(id, value, type = 'text') {
+                    if (!value.trim()) {
+                        alert(`Please enter a valid ${id.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+                        document.getElementById(id).focus();
+                        return false;
+                    }
+                    if (type === 'number' && (isNaN(value) || value <= 0)) {
+                        alert(`Please enter a valid positive number for ${id.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+                        document.getElementById(id).focus();
+                        return false;
+                    }
+                    return true;
+                }
+
+                // 操作函数
                 async function handleChangeBrand() {
                     const vehicleId = document.getElementById('changeBrandId').value;
                     const newValue = document.getElementById('changeBrandValue').value;
+                    if (!validateInput('changeBrandId', vehicleId) || !validateInput('changeBrandValue', newValue)) return;
                     const jData = await InvokeRequest({
                         cmd: 'ChangeBrand',
                         VehicleID: vehicleId,
@@ -928,10 +944,11 @@ void handleOfVehicles()
                     });
                     showResult(jData);
                 }
-        
+
                 async function handleChangeModel() {
                     const vehicleId = document.getElementById('changeModelId').value;
                     const newValue = document.getElementById('changeModelValue').value;
+                    if (!validateInput('changeModelId', vehicleId) || !validateInput('changeModelValue', newValue)) return;
                     const jData = await InvokeRequest({
                         cmd: 'ChangeModel',
                         VehicleID: vehicleId,
@@ -939,21 +956,23 @@ void handleOfVehicles()
                     });
                     showResult(jData);
                 }
-        
+
                 async function handleChangeWeight() {
                     const vehicleId = document.getElementById('changeWeightId').value;
                     const newValue = document.getElementById('changeWeightValue').value;
+                    if (!validateInput('changeWeightId', vehicleId) || !validateInput('changeWeightValue', newValue, 'number')) return;
                     const jData = await InvokeRequest({
                         cmd: 'ChangeWeight',
                         VehicleID: vehicleId,
-                        NewWeight: newValue
+                        NewWeight: parseFloat(newValue)
                     });
                     showResult(jData);
                 }
-        
+
                 async function handleChangeLicense() {
                     const vehicleId = document.getElementById('changeLicenseId').value;
                     const newValue = document.getElementById('changeLicenseValue').value;
+                    if (!validateInput('changeLicenseId', vehicleId) || !validateInput('changeLicenseValue', newValue)) return;
                     const jData = await InvokeRequest({
                         cmd: 'ChangeLicensePlate',
                         VehicleID: vehicleId,
@@ -961,18 +980,19 @@ void handleOfVehicles()
                     });
                     showResult(jData);
                 }
-        
+
                 async function handleChangeCapacity() {
                     const vehicleId = document.getElementById('changeCapacityId').value;
                     const newValue = document.getElementById('changeCapacityValue').value;
+                    if (!validateInput('changeCapacityId', vehicleId) || !validateInput('changeCapacityValue', newValue, 'number')) return;
                     const jData = await InvokeRequest({
                         cmd: 'ChangeMaxCapacity',
                         VehicleID: vehicleId,
-                        NewCapacity: newValue
+                        NewCapacity: parseInt(newValue)
                     });
                     showResult(jData);
                 }
-        
+
                 async function handleAddVehicle() {
                     const newVehicle = {
                         Brand: document.getElementById('addVehicleBrand').value,
@@ -981,59 +1001,93 @@ void handleOfVehicles()
                         License: document.getElementById('addVehicleLicense').value,
                         Capacity: document.getElementById('addVehicleCapacity').value
                     };
+                    if (!validateInput('addVehicleBrand', newVehicle.Brand) ||
+                        !validateInput('addVehicleModel', newVehicle.Model) ||
+                        !validateInput('addVehicleWeight', newVehicle.Weight, 'number') ||
+                        !validateInput('addVehicleLicense', newVehicle.License) ||
+                        !validateInput('addVehicleCapacity', newVehicle.Capacity, 'number')) return;
+                    newVehicle.Weight = parseFloat(newVehicle.Weight);
+                    newVehicle.Capacity = parseInt(newVehicle.Capacity);
                     const jData = await InvokeRequest({
                         cmd: 'AddVehicle',
                         Data: newVehicle
                     });
                     showResult(jData);
                 }
-        
+
                 async function handleDeleteVehicle() {
                     const vehicleId = document.getElementById('deleteVehicleId').value;
+                    if (!validateInput('deleteVehicleId', vehicleId)) return;
                     const jData = await InvokeRequest({
                         cmd: 'DeleteVehicle',
                         VehicleID: vehicleId
                     });
                     showResult(jData);
                 }
-        
+
                 // 结果展示函数
                 function showResult(jData) {
                     const resultBox = document.getElementById('resultBox');
                     if (jData.statuses === "Success") {
                         resultBox.textContent = `操作成功: ${jData.message || ''}`;
                         resultBox.style.color = 'green';
-                        GetVehicles(); // 刷新车辆列表
+                        GetVehicles(); // 刷新列表
                     } else {
-                        resultBox.textContent = `操作失败: ${jData.message || '未知错误'}`;
+                        resultBox.textContent = `操作失败: ${jData.message || jData.error || '未知错误'}`;
                         resultBox.style.color = 'red';
                     }
                 }
-        
+
                 // 获取车辆列表
                 async function GetVehicles() {
                     const jData = await InvokeRequest({ cmd: 'GetVehicles' });
-                    if (jData.statuses === "Success") {
-                        const container = document.getElementById('vehicleList');
-                        container.innerHTML = '';
+                    const container = document.getElementById('vehicleList');
+                    container.innerHTML = '';
+
+                    if (jData.statuses === "Success" && jData.Data && jData.Data.length > 0) {
                         jData.Data.forEach(vehicle => {
                             container.innerHTML += `
-                            <div class="status-card">
-                                <h3>${vehicle.Name}</h3>
-                                <p>Type: ${vehicle.Type}</p>
-                                <p>Location: ${vehicle.Location}</p>
-                                <p>Brand: ${vehicle.Brand}</p>
-                                <p>Model: ${vehicle.Model}</p>
-                                <p>Weight: ${vehicle.Weight}kg</p>
-                                <p>License: ${vehicle.LicensePlate}</p>
-                                <p>Capacity: ${vehicle.MaxCapacity}人</p>
-                            </div>
-                        `;
+                                <div class="status-card">
+                                    <h3>${vehicle.Name} (ID: ${vehicle.VehicleID})</h3>
+                                    <p>Type: ${vehicle.Type}</p>
+                                    <p>Location: ${vehicle.Location}</p>
+                                    <p>Brand: ${vehicle.Brand}</p>
+                                    <p>Model: ${vehicle.Model}</p>
+                                    <p>Weight: ${vehicle.Weight} kg</p>
+                                    <p>License Plate: ${vehicle.LicensePlate}</p>
+                                    <p>Max Capacity: ${vehicle.MaxCapacity} persons</p>
+                                </div>
+                            `;
                         });
+                    } else {
+                        container.innerHTML = '<div class="status-card">No vehicles available</div>';
                     }
                 }
-        
-                // 初始化时获取车辆列表
+
+                // 请求函数
+                async function InvokeRequest(data, timeout = 5000) {
+                    const apiUrl = 'http://192.168.0.1/api'; // 保留不变
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(data),
+                            signal: controller.signal
+                        });
+                        const result = await response.json();
+                        clearTimeout(timeoutId);
+                        return result;
+                    } catch (error) {
+                        return {
+                            statuses: error.name === "AbortError" ? "Timeout" : "Fail",
+                            message: error.name === "AbortError" ? "Request timed out" : "Network error"
+                        };
+                    }
+                }
+
                 document.addEventListener('DOMContentLoaded', function () {
                     GetVehicles();
                 });
@@ -1042,7 +1096,7 @@ void handleOfVehicles()
         
         </html>
         )html_delimiter";
-    server.send(200, "text/html", html.c_str());
+    server.send(200, "text/html", replaceIP(html.c_str()));
     cout << "User accessed vehicles.html" << endl;
 }
 
@@ -1182,24 +1236,22 @@ void handleOfDrive()
                 <a href="vehicles.html">Vehicle Control</a>
                 <a href="drive.html">Drive</a>
             </nav>
-        
+
             <div class="page">
-                <!-- 步骤1: 车辆选择 -->
                 <div id="step1" class="step-active step-container">
-                    <h2>choose vehicle (remain seat: <span id="remainingSeats">-</span>)</h2>
+                    <h2>Choose Vehicle (Remaining Seats: <span id="remainingSeats">-</span>)</h2>
                     <div id="vehicleList">
-                        <div class="loader"></div>
+                        <div class="loader">Loading vehicles...</div>
                     </div>
                 </div>
-        
-                <!-- 步骤2: 乘客管理 -->
+
                 <div id="step2" class="step-container">
                     <div id="selectedVehicleInfo">
                         <h3>Chosen Vehicle: <span id="selectedVehicleName">-</span></h3>
-                        <p>license plate: <span id="selectedVehicleLicense">-</span></p>
-                        <p>Max People count: <span id="selectedVehicleCapacity">-</span> </p>
+                        <p>License Plate: <span id="selectedVehicleLicense">-</span></p>
+                        <p>Max People Count: <span id="selectedVehicleCapacity">-</span></p>
                     </div>
-        
+
                     <h2>Add People</h2>
                     <div class="input-group">
                         <select class="input-field" id="existingUsers">
@@ -1207,28 +1259,28 @@ void handleOfDrive()
                         </select>
                         <button class="submit-btn" onclick="addExistingUser()">Add People</button>
                     </div>
-        
+
                     <div class="input-group">
-                        <input type="text" class="input-field" id="customUserName" placeholder="自定义用户名称">
-                        <button class="submit-btn" onclick="addCustomUser()">Add Customize People</button>
+                        <input type="text" class="input-field" id="customUserName" placeholder="Custom User Name">
+                        <button class="submit-btn" onclick="addCustomUser()">Add Custom People</button>
                     </div>
-        
+
                     <div class="input-group">
                         <button class="submit-btn" onclick="addEmptySeat()">Add Free Seat</button>
                     </div>
-        
+
                     <h2>Current People List</h2>
                     <div id="passengerList"></div>
-        
+
                     <div class="input-group">
                         <button class="submit-btn" onclick="startDrive()" style="width:100%;">Start</button>
                         <button class="submit-btn" onclick="resetSelection()" style="background-color:#6c757d;">Re-Choose Vehicle</button>
                     </div>
                 </div>
-        
+
                 <div id="resultBox" class="result-box"></div>
             </div>
-        
+
             <script>
                 // 系统状态
                 const state = {
@@ -1237,14 +1289,14 @@ void handleOfDrive()
                     vehicles: [],
                     users: []
                 };
-        
-                // API 配置
+
+                // API 配置（与后端匹配）
                 const API_ENDPOINTS = {
-                    VEHICLES: '/api/vehicles',
-                    USERS: '/api/users',
-                    DRIVES: '/api/drives'
+                    VEHICLES: 'http://192.168.0.1/api/vehicle',  // GET
+                    USERS: 'http://192.168.0.1/api/users',      // GET
+                    DRIVES: 'http://192.168.0.1/api/drives'     // POST
                 };
-        
+
                 // 初始化页面
                 document.addEventListener('DOMContentLoaded', async () => {
                     try {
@@ -1252,91 +1304,169 @@ void handleOfDrive()
                         renderVehicles();
                         renderUserOptions();
                     } catch (error) {
-                        showMessage('Fail to load data，pls try again', 'red');
+                        showMessage('Failed to load data, please try again', 'red');
                     }
                 });
-        
+
                 // API 请求方法
                 async function apiRequest(url, method = 'GET', body = null) {
                     const headers = { 'Content-Type': 'application/json' };
                     const config = { method, headers };
                     if (body) config.body = JSON.stringify(body);
-        
+
                     try {
                         const response = await fetch(url, config);
                         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                         return await response.json();
                     } catch (error) {
-                        console.error('Fail to fetch API:', error);
+                        console.error('Failed to fetch API:', error);
                         throw error;
                     }
                 }
-        
+
                 // 获取车辆数据
                 async function fetchVehicles() {
                     const data = await apiRequest(API_ENDPOINTS.VEHICLES);
-                    state.vehicles = data.map(v => ({
+                    state.vehicles = data.data.map(v => ({
                         id: v.id,
                         name: v.name,
                         license: v.license_plate,
-                        capacity: v.max_capacity
+                        capacity: v.max_capacity,
+                        status: v.status
                     }));
                 }
-        
+
                 // 获取用户数据
                 async function fetchUsers() {
                     const data = await apiRequest(API_ENDPOINTS.USERS);
-                    state.users = data.map(u => ({
+                    state.users = data.data.map(u => ({
                         id: u.id,
                         name: u.full_name
                     }));
                 }
-        
+
                 // 渲染车辆列表
                 function renderVehicles() {
                     const container = document.getElementById('vehicleList');
+                    if (state.vehicles.length === 0) {
+                        container.innerHTML = '<div class="status-card">No vehicles available</div>';
+                        return;
+                    }
                     container.innerHTML = state.vehicles.map(vehicle => `
-                <div class="status-card" onclick="selectVehicle('${vehicle.id}')">
-                    <h3>${vehicle.name}</h3>
-                    <p>License: ${vehicle.license}</p>
-                    <p>Max People: ${vehicle.capacity} 人</p>
-                </div>
-            `).join('');
+                        <div class="status-card" onclick="${vehicle.status === 'available' ? `selectVehicle('${vehicle.id}')` : ''}" 
+                            style="cursor: ${vehicle.status === 'available' ? 'pointer' : 'not-allowed'}; opacity: ${vehicle.status === 'available' ? 1 : 0.5};">
+                            <h3>${vehicle.name}</h3>
+                            <p>License: ${vehicle.license}</p>
+                            <p>Max People: ${vehicle.capacity} persons</p>
+                            <p>Status: ${vehicle.status}</p>
+                        </div>
+                    `).join('');
                 }
-        
+
                 // 选择车辆
                 function selectVehicle(vehicleId) {
                     state.selectedVehicle = state.vehicles.find(v => v.id === vehicleId);
+                    if (!state.selectedVehicle || state.selectedVehicle.status !== 'available') {
+                        showMessage('Vehicle not available', 'red');
+                        return;
+                    }
                     state.passengers = [];
-        
+
                     document.getElementById('selectedVehicleName').textContent = state.selectedVehicle.name;
                     document.getElementById('selectedVehicleLicense').textContent = state.selectedVehicle.license;
                     document.getElementById('selectedVehicleCapacity').textContent = state.selectedVehicle.capacity;
-        
+
                     document.getElementById('step1').classList.remove('step-active');
                     document.getElementById('step2').classList.add('step-active');
                     updateUI();
                 }
-        
+
                 // 渲染用户选项
                 function renderUserOptions() {
                     const select = document.getElementById('existingUsers');
                     select.innerHTML = '<option value="">Choose People</option>' +
                         state.users.map(user => `
-                    <option value="${user.id}">${user.name}</option>
-                `).join('');
+                            <option value="${user.id}">${user.name}</option>
+                        `).join('');
                 }
-        
-                // 添加乘客相关方法保持不变
-                // (保持原有的 addExistingUser, addCustomUser, addEmptySeat, addPassenger, removePassenger 等方法)
-        
-                // 开始行程（修改为API提交）
-                async function startDrive() {
-                    if (state.passengers.length === 0) {
-                        showMessage('Err: Pls add unless one people/free seat', 'red');
+
+                // 添加现有用户
+                function addExistingUser() {
+                    const userId = document.getElementById('existingUsers').value;
+                    if (!userId) {
+                        showMessage('Please select a user', 'red');
                         return;
                     }
-        
+                    const user = state.users.find(u => u.id === userId);
+                    if (state.passengers.length >= state.selectedVehicle.capacity) {
+                        showMessage('Vehicle capacity exceeded', 'red');
+                        return;
+                    }
+                    if (state.passengers.some(p => p.type === 'user' && p.id === user.id)) {
+                        showMessage('User already added', 'red');
+                        return;
+                    }
+                    addPassenger({ type: 'user', id: user.id, name: user.name });
+                }
+
+                // 添加自定义用户
+                function addCustomUser() {
+                    const name = document.getElementById('customUserName').value.trim();
+                    if (!name) {
+                        showMessage('Please enter a custom user name', 'red');
+                        document.getElementById('customUserName').focus();
+                        return;
+                    }
+                    if (state.passengers.length >= state.selectedVehicle.capacity) {
+                        showMessage('Vehicle capacity exceeded', 'red');
+                        return;
+                    }
+                    addPassenger({ type: 'custom', name });
+                    document.getElementById('customUserName').value = '';
+                }
+
+                // 添加空座位
+                function addEmptySeat() {
+                    if (state.passengers.length >= state.selectedVehicle.capacity) {
+                        showMessage('Vehicle capacity exceeded', 'red');
+                        return;
+                    }
+                    addPassenger({ type: 'empty', name: 'Free Seat' });
+                }
+
+                // 添加乘客
+                function addPassenger(passenger) {
+                    state.passengers.push(passenger);
+                    updateUI();
+                }
+
+                // 删除乘客
+                function removePassenger(index) {
+                    state.passengers.splice(index, 1);
+                    updateUI();
+                }
+
+                // 更新UI
+                function updateUI() {
+                    const remaining = state.selectedVehicle ? state.selectedVehicle.capacity - state.passengers.length : '-';
+                    document.getElementById('remainingSeats').textContent = remaining;
+
+                    const passengerList = document.getElementById('passengerList');
+                    passengerList.innerHTML = state.passengers.map((p, index) => `
+                        <div class="status-card">
+                            <p>${p.name}</p>
+                            <button class="submit-btn" onclick="removePassenger(${index})" style="background-color:#dc3545;">Remove</button>
+                        </div>
+                    `).join('') || '<p>No passengers added</p>';
+                }
+
+                // 开始行程
+                async function startDrive() {
+                    if (state.passengers.length === 0) {
+                        showMessage('Error: Please add at least one passenger or free seat', 'red');
+                        return;
+                    }
+
                     try {
                         const payload = {
                             vehicle_id: state.selectedVehicle.id,
@@ -1346,34 +1476,379 @@ void handleOfDrive()
                                 custom_name: p.type === 'custom' ? p.name : null
                             }))
                         };
-        
+
                         const response = await apiRequest(API_ENDPOINTS.DRIVES, 'POST', payload);
-        
+
                         if (response.success) {
-                            showMessage('The trip has started successfully! Departure time: ' + new Date().toLocaleString(), 'green');
+                            showMessage(`Trip started successfully! Drive ID: ${response.drive_id}, Start Time: ${response.start_time}`, 'green');
                             resetSelection();
                         } else {
-                            showMessage('Fail to start: ' + (response.error || 'Unexpected err'), 'red');
+                            showMessage(`Failed to start: ${response.error || 'Unexpected error'} - ${response.message || ''}`, 'red');
                         }
                     } catch (error) {
-                        showMessage('Fail to connect to server', 'red');
+                        showMessage('Failed to connect to server', 'red');
                     }
                 }
-        
-                // 其他辅助方法保持不变
-                // (保持原有的 updateUI, resetSelection, showMessage 等方法)
+
+                // 重置选择
+                function resetSelection() {
+                    state.selectedVehicle = null;
+                    state.passengers = [];
+                    document.getElementById('selectedVehicleName').textContent = '-';
+                    document.getElementById('selectedVehicleLicense').textContent = '-';
+                    document.getElementById('selectedVehicleCapacity').textContent = '-';
+                    document.getElementById('step2').classList.remove('step-active');
+                    document.getElementById('step1').classList.add('step-active');
+                    updateUI();
+                    renderVehicles();
+                }
+
+                // 显示消息
+                function showMessage(message, color) {
+                    const resultBox = document.getElementById('resultBox');
+                    resultBox.textContent = message;
+                    resultBox.style.color = color;
+                }
+
+                // 初始更新UI
+                updateUI();
             </script>
         </body>
         
         </html>
         )html_delimiter";
-    server.send(200, "text/html", html.c_str());
+    server.send(200, "text/html", replaceIP(html.c_str()));
     cout << "User accessed drive.html" << endl;
 }
 
 void handleNotFound()
 {
     server.send(404, "text/plain", "404: Not Found - The requested URL was not found on this server.");
+}
+
+void handleApiPost()
+{
+    if (!server.hasArg("plain"))
+    {
+        server.send(400, "application/json", "{\"error\":\"No body provided\"}");
+        return;
+    }
+    String body = server.arg("plain");
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, body);
+    if (error)
+    {
+        server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+    String cmd = doc["cmd"].as<String>();
+
+    // Main
+    if (cmd == "GetOnlineVehicleNumber")
+    {
+        int onlineCount = 0;
+        for (int i = 0; i < vehicleCount; i++)
+        {
+            if (vehicles[i].status == "in_use")
+                onlineCount++;
+        }
+        doc.clear();
+        doc["data"] = String(onlineCount);
+        String response;
+        serializeJson(doc, response);
+        server.send(200, "application/json", response);
+    }
+    else if (cmd == "GetUserName")
+    {
+        doc.clear();
+        doc["data"] = "admin"; // 示例用户名
+        String response;
+        serializeJson(doc, response);
+        server.send(200, "application/json", response);
+    }
+    // People
+    else if (cmd == "GetListOfPeople")
+    {
+        String nameList;
+        for (int i = 0; i < peopleCount; i++)
+        {
+            nameList += people[i].name;
+            if (i < peopleCount - 1)
+                nameList += "|";
+        }
+        doc.clear();
+        doc["data"] = nameList;
+        String response;
+        serializeJson(doc, response);
+        server.send(200, "application/json", response);
+    }
+    else if (cmd == "AddPeople")
+    {
+        String name = doc["Name"].as<String>();
+        if (peopleCount < 25)
+        {
+            people[peopleCount++] = {name, 70.0, 1.70, 30, "U" + String(peopleCount + 1)};
+            doc.clear();
+            doc["statuses"] = "Success";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+        else
+        {
+            doc.clear();
+            doc["statuses"] = "Fail";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+    }
+    else if (cmd == "DelPeople")
+    {
+        String name = doc["Name"].as<String>();
+        for (int i = 0; i < peopleCount; i++)
+        {
+            if (people[i].name == name)
+            {
+                for (int j = i; j < peopleCount - 1; j++)
+                {
+                    people[j] = people[j + 1];
+                }
+                peopleCount--;
+                doc.clear();
+                doc["statuses"] = "Success";
+                String response;
+                serializeJson(doc, response);
+                server.send(200, "application/json", response);
+                return;
+            }
+        }
+        doc.clear();
+        doc["statuses"] = "Fail";
+        String response;
+        serializeJson(doc, response);
+        server.send(200, "application/json", response);
+    }
+    // Vehicle Control
+    else if (cmd == "GetVehicles")
+    {
+        doc.clear();
+        doc["statuses"] = "Success";
+        JsonArray data = doc.createNestedArray("Data");
+        for (int i = 0; i < vehicleCount; i++)
+        {
+            JsonObject v = data.createNestedObject();
+            v["VehicleID"] = "V" + String(i + 1);
+            v["Name"] = vehicles[i].brand + " " + vehicles[i].model;
+            v["Type"] = "Unknown";           // 未定义类型，固定值
+            v["Location"] = "Parking Lot A"; // 示例值
+            v["Brand"] = vehicles[i].brand;
+            v["Model"] = vehicles[i].model;
+            v["Weight"] = vehicles[i].weight;
+            v["LicensePlate"] = String(vehicles[i].LPlate);
+            v["MaxCapacity"] = vehicles[i].maxCapacity;
+        }
+        String response;
+        serializeJson(doc, response);
+        server.send(200, "application/json", response);
+    }
+    else if (cmd == "ChangeBrand" || cmd == "ChangeModel" || cmd == "ChangeWeight" ||
+             cmd == "ChangeLicensePlate" || cmd == "ChangeMaxCapacity")
+    {
+        String vehicleID = doc["VehicleID"].as<String>();
+        int index = vehicleID.substring(1).toInt() - 1;
+        if (index >= 0 && index < vehicleCount)
+        {
+            if (cmd == "ChangeBrand")
+                vehicles[index].brand = doc["NewBrand"].as<String>();
+            else if (cmd == "ChangeModel")
+                vehicles[index].model = doc["NewModel"].as<String>();
+            else if (cmd == "ChangeWeight")
+                vehicles[index].weight = doc["NewWeight"].as<float>();
+            else if (cmd == "ChangeLicensePlate")
+                vehicles[index].LPlate = doc["NewLicense"].as<int>();
+            else if (cmd == "ChangeMaxCapacity")
+                vehicles[index].maxCapacity = doc["NewCapacity"].as<int>();
+            doc.clear();
+            doc["statuses"] = "Success";
+            doc["message"] = "success";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+        else
+        {
+            doc.clear();
+            doc["statuses"] = "Fail";
+            doc["message"] = "Vehicle not found";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+    }
+    else if (cmd == "AddVehicle")
+    {
+        if (vehicleCount < 10)
+        {
+            JsonObject data = doc["Data"].as<JsonObject>();
+            vehicles[vehicleCount++] = {
+                data["Brand"].as<String>(),
+                data["Model"].as<String>(),
+                data["Weight"].as<float>(),
+                data["License"].as<int>(),
+                data["Capacity"].as<int>(),
+                "available"};
+            doc.clear();
+            doc["statuses"] = "Success";
+            doc["message"] = "Vehicle ID: V" + String(vehicleCount);
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+        else
+        {
+            doc.clear();
+            doc["statuses"] = "Fail";
+            doc["message"] = "Max vehicles reached";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+    }
+    else if (cmd == "DeleteVehicle")
+    {
+        String vehicleID = doc["VehicleID"].as<String>();
+        int index = vehicleID.substring(1).toInt() - 1;
+        if (index >= 0 && index < vehicleCount)
+        {
+            for (int i = index; i < vehicleCount - 1; i++)
+            {
+                vehicles[i] = vehicles[i + 1];
+            }
+            vehicleCount--;
+            doc.clear();
+            doc["statuses"] = "Success";
+            doc["message"] = "";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+        else
+        {
+            doc.clear();
+            doc["statuses"] = "Fail";
+            doc["message"] = "Vehicle not found";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+    }
+    else
+    {
+        server.send(400, "application/json", "{\"error\":\"Unknown command\"}");
+    }
+}
+
+// 处理 GET /api/vehicle
+void handleGetVehicleList()
+{
+    JsonDocument doc;
+    JsonArray data = doc.createNestedArray("data");
+    for (int i = 0; i < vehicleCount; i++)
+    {
+        JsonObject v = data.createNestedObject();
+        v["id"] = "V" + String(i + 1);
+        v["name"] = vehicles[i].brand + " " + vehicles[i].model;
+        v["license_plate"] = String(vehicles[i].LPlate);
+        v["max_capacity"] = vehicles[i].maxCapacity;
+        v["status"] = vehicles[i].status;
+    }
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+}
+
+// 处理 GET /api/users
+void handleGetPeopleList()
+{
+    JsonDocument doc;
+    JsonArray data = doc.createNestedArray("data");
+    for (int i = 0; i < peopleCount; i++)
+    {
+        JsonObject p = data.createNestedObject();
+        p["id"] = people[i].id;
+        p["full_name"] = people[i].name;
+        p["email"] = ""; // 未定义email字段，留空
+    }
+    String response;
+    serializeJson(doc, response);
+    server.send(200, "application/json", response);
+}
+
+// 处理 POST /api/drives
+void handleDrive()
+{
+    if (!server.hasArg("plain"))
+    {
+        server.send(400, "application/json", "{\"error\":\"No body provided\"}");
+        return;
+    }
+    String body = server.arg("plain");
+    JsonDocument doc;
+    DeserializationError error = deserializeJson(doc, body);
+    if (error)
+    {
+        server.send(400, "application/json", "{\"error\":\"Invalid JSON\"}");
+        return;
+    }
+    String vehicleID = doc["vehicle_id"].as<String>();
+    JsonArray passengers = doc["passengers"];
+    int index = vehicleID.substring(1).toInt() - 1;
+
+    if (index >= 0 && index < vehicleCount)
+    {
+        if (vehicles[index].status == "in_use")
+        {
+            doc.clear();
+            doc["success"] = false;
+            doc["error"] = "VEHICLE_NOT_AVAILABLE";
+            doc["message"] = "VehicleNotavailable";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+        else if (passengers.size() > vehicles[index].maxCapacity)
+        {
+            doc.clear();
+            doc["success"] = false;
+            doc["error"] = "CAPACITY_EXCEEDED";
+            doc["message"] = "Too many passengers";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+        else
+        {
+            vehicles[index].status = "in_use";
+            doc.clear();
+            doc["success"] = true;
+            doc["drive_id"] = "D" + String(millis());
+            doc["start_time"] = "2023-07-20T14:30:00Z";
+            String response;
+            serializeJson(doc, response);
+            server.send(200, "application/json", response);
+        }
+    }
+    else
+    {
+        doc.clear();
+        doc["success"] = false;
+        doc["error"] = "VEHICLE_NOT_FOUND";
+        doc["message"] = "Vehicle not found";
+        String response;
+        serializeJson(doc, response);
+        server.send(200, "application/json", response);
+    }
 }
 
 void setup()
@@ -1389,10 +1864,10 @@ void setup()
     pinMode(RIGHT_BUTTON_PIN, INPUT_PULLUP);
 
     // Ensure Yellow LED is off by default
-    digitalWrite(YELLOW_LED_PIN, LOW);
+    // digitalWrite(YELLOW_LED_PIN, LOW);
 
     // Turn on RGB LED
-    digitalWrite(RGB_LED_PIN, HIGH);
+    // digitalWrite(RGB_LED_PIN, HIGH);
 
     // Beep the buzzer twice
     for (int i = 0; i < 2; i++)
@@ -1426,6 +1901,10 @@ void setup()
     server.on("/vehicles.html", handleOfVehicles);
     server.on("/drive.html", handleOfDrive);
     server.onNotFound(handleNotFound);
+    server.on("/api", handleApiPost);
+    server.on("/api/vehicle", handleGetVehicleList);
+    server.on("/api/users", handleGetPeopleList);
+    server.on("/api/drives", handleDrive);
     server.begin();
     Serial.println("Web server started");
 
