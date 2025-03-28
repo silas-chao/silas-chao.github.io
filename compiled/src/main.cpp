@@ -241,7 +241,7 @@ void handleOfIndex()
                     max-width: 500px;
                 }
         
-                /* 输入框样式 */
+
                 .input-field {
                     flex: 1;
                     padding: 8px 12px;
@@ -250,7 +250,7 @@ void handleOfIndex()
                     font-size: 14px;
                 }
         
-                /* 按钮样式 */
+
                 .submit-btn {
                     background-color: #2196F3;
                     color: white;
@@ -441,7 +441,7 @@ void handleOfPeople()
                     max-width: 500px;
                 }
         
-                /* 输入框样式 */
+
                 .input-field {
                     flex: 1;
                     padding: 8px 12px;
@@ -450,7 +450,7 @@ void handleOfPeople()
                     font-size: 14px;
                 }
         
-                /* 按钮样式 */
+
                 .submit-btn {
                     background-color: #2196F3;
                     color: white;
@@ -692,7 +692,7 @@ void handleOfPeople()
 
                 // 发送请求
                 async function InvokeRequest(data, timeout = 5000) {
-                    const apiUrl = 'http://192.168.0.1/api'; // 保留不变，由程序处理
+                    const apiUrl = 'http://192.168.0.1/api';
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -807,7 +807,6 @@ void handleOfVehicles()
                     max-width: 500px;
                 }
         
-                /* 输入框样式 */
                 .input-field {
                     flex: 1;
                     padding: 8px 12px;
@@ -815,8 +814,6 @@ void handleOfVehicles()
                     border-radius: 4px;
                     font-size: 14px;
                 }
-        
-                /* 按钮样式 */
                 .submit-btn {
                     background-color: #2196F3;
                     color: white;
@@ -917,7 +914,7 @@ void handleOfVehicles()
             </div>
 
             <script>
-                // 输入验证函数
+
                 function validateInput(id, value, type = 'text') {
                     if (!value.trim()) {
                         alert(`Please enter a valid ${id.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
@@ -932,7 +929,7 @@ void handleOfVehicles()
                     return true;
                 }
 
-                // 操作函数
+
                 async function handleChangeBrand() {
                     const vehicleId = document.getElementById('changeBrandId').value;
                     const newValue = document.getElementById('changeBrandValue').value;
@@ -1025,20 +1022,20 @@ void handleOfVehicles()
                     showResult(jData);
                 }
 
-                // 结果展示函数
+
                 function showResult(jData) {
                     const resultBox = document.getElementById('resultBox');
                     if (jData.statuses === "Success") {
-                        resultBox.textContent = `操作成功: ${jData.message || ''}`;
+                        resultBox.textContent = `success: ${jData.message || ''}`;
                         resultBox.style.color = 'green';
-                        GetVehicles(); // 刷新列表
+                        GetVehicles();
                     } else {
-                        resultBox.textContent = `操作失败: ${jData.message || jData.error || '未知错误'}`;
+                        resultBox.textContent = `fail: ${jData.message || jData.error || 'unexpected error'}`;
                         resultBox.style.color = 'red';
                     }
                 }
 
-                // 获取车辆列表
+
                 async function GetVehicles() {
                     const jData = await InvokeRequest({ cmd: 'GetVehicles' });
                     const container = document.getElementById('vehicleList');
@@ -1064,9 +1061,8 @@ void handleOfVehicles()
                     }
                 }
 
-                // 请求函数
                 async function InvokeRequest(data, timeout = 5000) {
-                    const apiUrl = 'http://192.168.0.1/api'; // 保留不变
+                    const apiUrl = 'http://192.168.0.1/api';
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
@@ -1282,7 +1278,6 @@ void handleOfDrive()
             </div>
 
             <script>
-                // 系统状态
                 const state = {
                     selectedVehicle: null,
                     passengers: [],
@@ -1290,14 +1285,12 @@ void handleOfDrive()
                     users: []
                 };
 
-                // API 配置（与后端匹配）
                 const API_ENDPOINTS = {
                     VEHICLES: 'http://192.168.0.1/api/vehicle',  // GET
                     USERS: 'http://192.168.0.1/api/users',      // GET
                     DRIVES: 'http://192.168.0.1/api/drives'     // POST
                 };
 
-                // 初始化页面
                 document.addEventListener('DOMContentLoaded', async () => {
                     try {
                         await Promise.all([fetchVehicles(), fetchUsers()]);
@@ -1308,7 +1301,6 @@ void handleOfDrive()
                     }
                 });
 
-                // API 请求方法
                 async function apiRequest(url, method = 'GET', body = null) {
                     const headers = { 'Content-Type': 'application/json' };
                     const config = { method, headers };
@@ -1324,7 +1316,6 @@ void handleOfDrive()
                     }
                 }
 
-                // 获取车辆数据
                 async function fetchVehicles() {
                     const data = await apiRequest(API_ENDPOINTS.VEHICLES);
                     state.vehicles = data.data.map(v => ({
@@ -1336,7 +1327,6 @@ void handleOfDrive()
                     }));
                 }
 
-                // 获取用户数据
                 async function fetchUsers() {
                     const data = await apiRequest(API_ENDPOINTS.USERS);
                     state.users = data.data.map(u => ({
@@ -1345,7 +1335,6 @@ void handleOfDrive()
                     }));
                 }
 
-                // 渲染车辆列表
                 function renderVehicles() {
                     const container = document.getElementById('vehicleList');
                     if (state.vehicles.length === 0) {
@@ -1363,7 +1352,6 @@ void handleOfDrive()
                     `).join('');
                 }
 
-                // 选择车辆
                 function selectVehicle(vehicleId) {
                     state.selectedVehicle = state.vehicles.find(v => v.id === vehicleId);
                     if (!state.selectedVehicle || state.selectedVehicle.status !== 'available') {
@@ -1381,7 +1369,6 @@ void handleOfDrive()
                     updateUI();
                 }
 
-                // 渲染用户选项
                 function renderUserOptions() {
                     const select = document.getElementById('existingUsers');
                     select.innerHTML = '<option value="">Choose People</option>' +
@@ -1390,7 +1377,6 @@ void handleOfDrive()
                         `).join('');
                 }
 
-                // 添加现有用户
                 function addExistingUser() {
                     const userId = document.getElementById('existingUsers').value;
                     if (!userId) {
@@ -1409,7 +1395,6 @@ void handleOfDrive()
                     addPassenger({ type: 'user', id: user.id, name: user.name });
                 }
 
-                // 添加自定义用户
                 function addCustomUser() {
                     const name = document.getElementById('customUserName').value.trim();
                     if (!name) {
@@ -1425,7 +1410,6 @@ void handleOfDrive()
                     document.getElementById('customUserName').value = '';
                 }
 
-                // 添加空座位
                 function addEmptySeat() {
                     if (state.passengers.length >= state.selectedVehicle.capacity) {
                         showMessage('Vehicle capacity exceeded', 'red');
@@ -1434,19 +1418,16 @@ void handleOfDrive()
                     addPassenger({ type: 'empty', name: 'Free Seat' });
                 }
 
-                // 添加乘客
                 function addPassenger(passenger) {
                     state.passengers.push(passenger);
                     updateUI();
                 }
 
-                // 删除乘客
                 function removePassenger(index) {
                     state.passengers.splice(index, 1);
                     updateUI();
                 }
 
-                // 更新UI
                 function updateUI() {
                     const remaining = state.selectedVehicle ? state.selectedVehicle.capacity - state.passengers.length : '-';
                     document.getElementById('remainingSeats').textContent = remaining;
@@ -1460,7 +1441,6 @@ void handleOfDrive()
                     `).join('') || '<p>No passengers added</p>';
                 }
 
-                // 开始行程
                 async function startDrive() {
                     if (state.passengers.length === 0) {
                         showMessage('Error: Please add at least one passenger or free seat', 'red');
@@ -1490,7 +1470,6 @@ void handleOfDrive()
                     }
                 }
 
-                // 重置选择
                 function resetSelection() {
                     state.selectedVehicle = null;
                     state.passengers = [];
@@ -1503,14 +1482,12 @@ void handleOfDrive()
                     renderVehicles();
                 }
 
-                // 显示消息
                 function showMessage(message, color) {
                     const resultBox = document.getElementById('resultBox');
                     resultBox.textContent = message;
                     resultBox.style.color = color;
                 }
 
-                // 初始更新UI
                 updateUI();
             </script>
         </body>
@@ -1561,7 +1538,7 @@ void handleApiPost()
     else if (cmd == "GetUserName")
     {
         doc.clear();
-        doc["data"] = "admin"; // 示例用户名
+        doc["data"] = "admin";
         String response;
         serializeJson(doc, response);
         server.send(200, "application/json", response);
@@ -1778,7 +1755,7 @@ void handleGetPeopleList()
         JsonObject p = data.createNestedObject();
         p["id"] = people[i].id;
         p["full_name"] = people[i].name;
-        p["email"] = ""; // 未定义email字段，留空
+        p["email"] = "";
     }
     String response;
     serializeJson(doc, response);
