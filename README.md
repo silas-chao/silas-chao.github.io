@@ -21,5 +21,11 @@ Instructions on How to Use:
 1. Open the link at the very bottom of this page.
 
 Resources Used to Build Product:
+* C++
+* HTML
+* CAD(3d printing)
+* Arduino ESP 32 board
+* GPS sensor
+* Accelerometer
 
 [Link to App](https://silas-chao.github.io/htmlPart/)
