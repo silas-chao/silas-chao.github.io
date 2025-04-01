@@ -133,20 +133,18 @@
     </nav>
 
     <div class="page">
-        <!-- 步骤1: 车辆选择 -->
         <div id="step1" class="step-active step-container">
-            <h2>choose vehicle (remain seat: <span id="remainingSeats">-</span>)</h2>
+            <h2>Choose Vehicle (Remaining Seats: <span id="remainingSeats">-</span>)</h2>
             <div id="vehicleList">
-                <div class="loader"></div>
+                <div class="loader">Loading vehicles...</div>
             </div>
         </div>
 
-        <!-- 步骤2: 乘客管理 -->
         <div id="step2" class="step-container">
             <div id="selectedVehicleInfo">
                 <h3>Chosen Vehicle: <span id="selectedVehicleName">-</span></h3>
-                <p>license plate: <span id="selectedVehicleLicense">-</span></p>
-                <p>Max People count: <span id="selectedVehicleCapacity">-</span> </p>
+                <p>License Plate: <span id="selectedVehicleLicense">-</span></p>
+                <p>Max People Count: <span id="selectedVehicleCapacity">-</span></p>
             </div>
 
             <h2>Add People</h2>
@@ -158,8 +156,8 @@
             </div>
 
             <div class="input-group">
-                <input type="text" class="input-field" id="customUserName" placeholder="自定义用户名称">
-                <button class="submit-btn" onclick="addCustomUser()">Add Customize People</button>
+                <input type="text" class="input-field" id="customUserName" placeholder="Custom User Name">
+                <button class="submit-btn" onclick="addCustomUser()">Add Custom People</button>
             </div>
 
             <div class="input-group">
@@ -179,7 +177,6 @@
     </div>
 
     <script>
-        // 系统状态
         const state = {
             selectedVehicle: null,
             passengers: [],
@@ -187,25 +184,22 @@
             users: []
         };
 
-        // API 配置
         const API_ENDPOINTS = {
-            VEHICLES: '/api/vehicles',
-            USERS: '/api/users',
-            DRIVES: '/api/drives'
+            VEHICLES: 'http://192.168.0.1/api/vehicle',  // GET
+            USERS: 'http://192.168.0.1/api/users',      // GET
+            DRIVES: 'http://192.168.0.1/api/drives'     // POST
         };
 
-        // 初始化页面
         document.addEventListener('DOMContentLoaded', async () => {
             try {
                 await Promise.all([fetchVehicles(), fetchUsers()]);
                 renderVehicles();
                 renderUserOptions();
             } catch (error) {
-                showMessage('Fail to load data，pls try again', 'red');
+                showMessage('Failed to load data, please try again', 'red');
             }
         });
 
-        // API 请求方法
         async function apiRequest(url, method = 'GET', body = null) {
             const headers = { 'Content-Type': 'application/json' };
             const config = { method, headers };
@@ -216,46 +210,53 @@
                 if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
                 return await response.json();
             } catch (error) {
-                console.error('Fail to fetch API:', error);
+                console.error('Failed to fetch API:', error);
                 throw error;
             }
         }
 
-        // 获取车辆数据
         async function fetchVehicles() {
             const data = await apiRequest(API_ENDPOINTS.VEHICLES);
-            state.vehicles = data.map(v => ({
+            state.vehicles = data.data.map(v => ({
                 id: v.id,
                 name: v.name,
                 license: v.license_plate,
-                capacity: v.max_capacity
+                capacity: v.max_capacity,
+                status: v.status
             }));
         }
 
-        // 获取用户数据
         async function fetchUsers() {
             const data = await apiRequest(API_ENDPOINTS.USERS);
-            state.users = data.map(u => ({
+            state.users = data.data.map(u => ({
                 id: u.id,
                 name: u.full_name
             }));
         }
 
-        // 渲染车辆列表
         function renderVehicles() {
             const container = document.getElementById('vehicleList');
+            if (state.vehicles.length === 0) {
+                container.innerHTML = '<div class="status-card">No vehicles available</div>';
+                return;
+            }
             container.innerHTML = state.vehicles.map(vehicle => `
-        <div class="status-card" onclick="selectVehicle('${vehicle.id}')">
-            <h3>${vehicle.name}</h3>
-            <p>License: ${vehicle.license}</p>
-            <p>Max People: ${vehicle.capacity} 人</p>
-        </div>
-    `).join('');
+                <div class="status-card" onclick="${vehicle.status === 'available' ? `selectVehicle('${vehicle.id}')` : ''}" 
+                    style="cursor: ${vehicle.status === 'available' ? 'pointer' : 'not-allowed'}; opacity: ${vehicle.status === 'available' ? 1 : 0.5};">
+                    <h3>${vehicle.name}</h3>
+                    <p>License: ${vehicle.license}</p>
+                    <p>Max People: ${vehicle.capacity} persons</p>
+                    <p>Status: ${vehicle.status}</p>
+                </div>
+            `).join('');
         }
 
-        // 选择车辆
         function selectVehicle(vehicleId) {
             state.selectedVehicle = state.vehicles.find(v => v.id === vehicleId);
+            if (!state.selectedVehicle || state.selectedVehicle.status !== 'available') {
+                showMessage('Vehicle not available', 'red');
+                return;
+            }
             state.passengers = [];
 
             document.getElementById('selectedVehicleName').textContent = state.selectedVehicle.name;
@@ -267,22 +268,81 @@
             updateUI();
         }
 
-        // 渲染用户选项
         function renderUserOptions() {
             const select = document.getElementById('existingUsers');
             select.innerHTML = '<option value="">Choose People</option>' +
                 state.users.map(user => `
-            <option value="${user.id}">${user.name}</option>
-        `).join('');
+                    <option value="${user.id}">${user.name}</option>
+                `).join('');
         }
 
-        // 添加乘客相关方法保持不变
-        // (保持原有的 addExistingUser, addCustomUser, addEmptySeat, addPassenger, removePassenger 等方法)
+        function addExistingUser() {
+            const userId = document.getElementById('existingUsers').value;
+            if (!userId) {
+                showMessage('Please select a user', 'red');
+                return;
+            }
+            const user = state.users.find(u => u.id === userId);
+            if (state.passengers.length >= state.selectedVehicle.capacity) {
+                showMessage('Vehicle capacity exceeded', 'red');
+                return;
+            }
+            if (state.passengers.some(p => p.type === 'user' && p.id === user.id)) {
+                showMessage('User already added', 'red');
+                return;
+            }
+            addPassenger({ type: 'user', id: user.id, name: user.name });
+        }
 
-        // 开始行程（修改为API提交）
+        function addCustomUser() {
+            const name = document.getElementById('customUserName').value.trim();
+            if (!name) {
+                showMessage('Please enter a custom user name', 'red');
+                document.getElementById('customUserName').focus();
+                return;
+            }
+            if (state.passengers.length >= state.selectedVehicle.capacity) {
+                showMessage('Vehicle capacity exceeded', 'red');
+                return;
+            }
+            addPassenger({ type: 'custom', name });
+            document.getElementById('customUserName').value = '';
+        }
+
+        function addEmptySeat() {
+            if (state.passengers.length >= state.selectedVehicle.capacity) {
+                showMessage('Vehicle capacity exceeded', 'red');
+                return;
+            }
+            addPassenger({ type: 'empty', name: 'Free Seat' });
+        }
+
+        function addPassenger(passenger) {
+            state.passengers.push(passenger);
+            updateUI();
+        }
+
+        function removePassenger(index) {
+            state.passengers.splice(index, 1);
+            updateUI();
+        }
+
+        function updateUI() {
+            const remaining = state.selectedVehicle ? state.selectedVehicle.capacity - state.passengers.length : '-';
+            document.getElementById('remainingSeats').textContent = remaining;
+
+            const passengerList = document.getElementById('passengerList');
+            passengerList.innerHTML = state.passengers.map((p, index) => `
+                <div class="status-card">
+                    <p>${p.name}</p>
+                    <button class="submit-btn" onclick="removePassenger(${index})" style="background-color:#dc3545;">Remove</button>
+                </div>
+            `).join('') || '<p>No passengers added</p>';
+        }
+
         async function startDrive() {
             if (state.passengers.length === 0) {
-                showMessage('Err: Pls add unless one people/free seat', 'red');
+                showMessage('Error: Please add at least one passenger or free seat', 'red');
                 return;
             }
 
@@ -299,18 +359,35 @@
                 const response = await apiRequest(API_ENDPOINTS.DRIVES, 'POST', payload);
 
                 if (response.success) {
-                    showMessage('The trip has started successfully! Departure time: ' + new Date().toLocaleString(), 'green');
+                    showMessage(`Trip started successfully! Drive ID: ${response.drive_id}, Start Time: ${response.start_time}`, 'green');
                     resetSelection();
                 } else {
-                    showMessage('Fail to start: ' + (response.error || 'Unexpected err'), 'red');
+                    showMessage(`Failed to start: ${response.error || 'Unexpected error'} - ${response.message || ''}`, 'red');
                 }
             } catch (error) {
-                showMessage('Fail to connect to server', 'red');
+                showMessage('Failed to connect to server', 'red');
             }
         }
 
-        // 其他辅助方法保持不变
-        // (保持原有的 updateUI, resetSelection, showMessage 等方法)
+        function resetSelection() {
+            state.selectedVehicle = null;
+            state.passengers = [];
+            document.getElementById('selectedVehicleName').textContent = '-';
+            document.getElementById('selectedVehicleLicense').textContent = '-';
+            document.getElementById('selectedVehicleCapacity').textContent = '-';
+            document.getElementById('step2').classList.remove('step-active');
+            document.getElementById('step1').classList.add('step-active');
+            updateUI();
+            renderVehicles();
+        }
+
+        function showMessage(message, color) {
+            const resultBox = document.getElementById('resultBox');
+            resultBox.textContent = message;
+            resultBox.style.color = color;
+        }
+
+        updateUI();
     </script>
 </body>
 
