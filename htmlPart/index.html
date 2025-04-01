@@ -76,7 +76,7 @@
             max-width: 500px;
         }
 
-        /* 输入框样式 */
+
         .input-field {
             flex: 1;
             padding: 8px 12px;
@@ -85,7 +85,7 @@
             font-size: 14px;
         }
 
-        /* 按钮样式 */
+
         .submit-btn {
             background-color: #2196F3;
             color: white;
@@ -132,29 +132,28 @@
         async function GetOnlineVehicleNumber() {
             const jData = await InvokeRequest({
                 cmd: 'GetOnlineVehicleNumber'
-            })
-            if (jData.statuses == "Timeout") {
+            });
+            if (jData.statuses === "Timeout") {
                 document.getElementById('OLLable').textContent = "Online Vehicle: Timeout";
                 throw new Error('Network response was not ok');
-            }
-            else if (jData.statuses == "Fail") {
-                document.getElementById('OLLable').textContent = "Online Vehicle: Err";
+            } else if (jData.statuses !== "Fail") {
+                document.getElementById('OLLable').textContent = `Online Vehicle: ${jData.data}`; // 修复为小写data
             } else {
-                document.getElementById('OLLable').textContent = `Online Vehicle: ${jData.Data}`;
+                document.getElementById('OLLable').textContent = "Online Vehicle: Err";
             }
         }
 
         async function GetUserName() {
             const jData = await InvokeRequest({
                 cmd: 'GetUserName'
-            })
-            if (jData.statuses == "Timeout") {
+            });
+            if (jData.statuses === "Timeout") {
                 document.getElementById('UName').textContent = "User Name: Timeout";
                 throw new Error('Network response was not ok');
-            } else if (jData.statuses == "Fail") {
-                document.getElementById('UName').textContent = "User Name: Err";
+            } else if (jData.statuses !== "Fail") {
+                document.getElementById('UName').textContent = `User Name: ${jData.data}`; // 修复为小写data
             } else {
-                document.getElementById('UName').textContent = `User Name: ${jData.Data}`;
+                document.getElementById('UName').textContent = "User Name: Err";
             }
         }
 
@@ -173,9 +172,7 @@
                 clearTimeout(timeoutId);
                 return result;
             } catch (error) {
-                var rJson = {
-                    statuses: ""
-                };
+                var rJson = { statuses: "" };
                 if (error.name === "AbortError") {
                     rJson.statuses = "Timeout";
                 } else {
