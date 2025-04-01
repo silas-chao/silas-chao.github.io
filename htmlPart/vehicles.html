@@ -76,7 +76,6 @@
             max-width: 500px;
         }
 
-        /* 输入框样式 */
         .input-field {
             flex: 1;
             padding: 8px 12px;
@@ -84,8 +83,6 @@
             border-radius: 4px;
             font-size: 14px;
         }
-
-        /* 按钮样式 */
         .submit-btn {
             background-color: #2196F3;
             color: white;
@@ -119,13 +116,10 @@
         <a href="drive.html">Drive</a>
     </nav>
 
-    <!-- 在原有HTML的.page div内添加以下内容 -->
     <div class="page active">
         <h1>DashBoard Of Vehicles</h1>
 
-        <!-- 车辆状态显示 -->
         <div id="vehicleList" class="vehicle-list">
-            <!-- 动态生成的车辆卡片 -->
             <div class="status-card example-card">
                 <h3>Vehicle Name: DemoCar</h3>
                 <p>Type: Sedan</p>
@@ -138,38 +132,32 @@
             </div>
         </div>
 
-        <!-- 操作表单区域 -->
         <h2>Vehicle Operations</h2>
 
-        <!-- Change Brand -->
         <div class="input-group">
             <input type="text" class="input-field" id="changeBrandId" placeholder="Vehicle ID">
             <input type="text" class="input-field" id="changeBrandValue" placeholder="New Brand">
             <button class="submit-btn" onclick="handleChangeBrand()">Change Brand</button>
         </div>
 
-        <!-- Change Model -->
         <div class="input-group">
             <input type="text" class="input-field" id="changeModelId" placeholder="Vehicle ID">
             <input type="text" class="input-field" id="changeModelValue" placeholder="New Model">
             <button class="submit-btn" onclick="handleChangeModel()">Change Model</button>
         </div>
 
-        <!-- Change Weight -->
         <div class="input-group">
             <input type="text" class="input-field" id="changeWeightId" placeholder="Vehicle ID">
             <input type="number" class="input-field" id="changeWeightValue" placeholder="New Weight (kg)">
             <button class="submit-btn" onclick="handleChangeWeight()">Change Weight</button>
         </div>
 
-        <!-- Change License Plate -->
         <div class="input-group">
             <input type="text" class="input-field" id="changeLicenseId" placeholder="Vehicle ID">
             <input type="text" class="input-field" id="changeLicenseValue" placeholder="New License Plate">
             <button class="submit-btn" onclick="handleChangeLicense()">Change License</button>
         </div>
 
-        <!-- Change Max Capacity -->
         <div class="input-group">
             <input type="text" class="input-field" id="changeCapacityId" placeholder="Vehicle ID">
             <input type="number" class="input-field" id="changeCapacityValue" placeholder="New Max Capacity">
@@ -177,7 +165,6 @@
         </div>
 
         </br>
-        <!-- Add Vehicle -->
         <div class="input-group" style="flex-wrap: wrap; gap: 8px;">
             <input type="text" class="input-field" id="addVehicleBrand" placeholder="Brand">
             <input type="text" class="input-field" id="addVehicleModel" placeholder="Model">
@@ -187,21 +174,35 @@
             <button class="submit-btn" onclick="handleAddVehicle()">Add Vehicle</button>
         </div>
         </br>
-        <!-- Delete Vehicle -->
         <div class="input-group">
             <input type="text" class="input-field" id="deleteVehicleId" placeholder="Vehicle ID">
             <button class="submit-btn" onclick="handleDeleteVehicle()">Delete Vehicle</button>
         </div>
 
-        <!-- 结果展示 -->
         <div class="result-box" id="resultBox"></div>
     </div>
 
     <script>
-        // 新增操作函数
+
+        function validateInput(id, value, type = 'text') {
+            if (!value.trim()) {
+                alert(`Please enter a valid ${id.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+                document.getElementById(id).focus();
+                return false;
+            }
+            if (type === 'number' && (isNaN(value) || value <= 0)) {
+                alert(`Please enter a valid positive number for ${id.replace(/([A-Z])/g, ' $1').toLowerCase()}`);
+                document.getElementById(id).focus();
+                return false;
+            }
+            return true;
+        }
+
+
         async function handleChangeBrand() {
             const vehicleId = document.getElementById('changeBrandId').value;
             const newValue = document.getElementById('changeBrandValue').value;
+            if (!validateInput('changeBrandId', vehicleId) || !validateInput('changeBrandValue', newValue)) return;
             const jData = await InvokeRequest({
                 cmd: 'ChangeBrand',
                 VehicleID: vehicleId,
@@ -213,6 +214,7 @@
         async function handleChangeModel() {
             const vehicleId = document.getElementById('changeModelId').value;
             const newValue = document.getElementById('changeModelValue').value;
+            if (!validateInput('changeModelId', vehicleId) || !validateInput('changeModelValue', newValue)) return;
             const jData = await InvokeRequest({
                 cmd: 'ChangeModel',
                 VehicleID: vehicleId,
@@ -224,10 +226,11 @@
         async function handleChangeWeight() {
             const vehicleId = document.getElementById('changeWeightId').value;
             const newValue = document.getElementById('changeWeightValue').value;
+            if (!validateInput('changeWeightId', vehicleId) || !validateInput('changeWeightValue', newValue, 'number')) return;
             const jData = await InvokeRequest({
                 cmd: 'ChangeWeight',
                 VehicleID: vehicleId,
-                NewWeight: newValue
+                NewWeight: parseFloat(newValue)
             });
             showResult(jData);
         }
@@ -235,6 +238,7 @@
         async function handleChangeLicense() {
             const vehicleId = document.getElementById('changeLicenseId').value;
             const newValue = document.getElementById('changeLicenseValue').value;
+            if (!validateInput('changeLicenseId', vehicleId) || !validateInput('changeLicenseValue', newValue)) return;
             const jData = await InvokeRequest({
                 cmd: 'ChangeLicensePlate',
                 VehicleID: vehicleId,
@@ -246,10 +250,11 @@
         async function handleChangeCapacity() {
             const vehicleId = document.getElementById('changeCapacityId').value;
             const newValue = document.getElementById('changeCapacityValue').value;
+            if (!validateInput('changeCapacityId', vehicleId) || !validateInput('changeCapacityValue', newValue, 'number')) return;
             const jData = await InvokeRequest({
                 cmd: 'ChangeMaxCapacity',
                 VehicleID: vehicleId,
-                NewCapacity: newValue
+                NewCapacity: parseInt(newValue)
             });
             showResult(jData);
         }
@@ -262,6 +267,13 @@
                 License: document.getElementById('addVehicleLicense').value,
                 Capacity: document.getElementById('addVehicleCapacity').value
             };
+            if (!validateInput('addVehicleBrand', newVehicle.Brand) ||
+                !validateInput('addVehicleModel', newVehicle.Model) ||
+                !validateInput('addVehicleWeight', newVehicle.Weight, 'number') ||
+                !validateInput('addVehicleLicense', newVehicle.License) ||
+                !validateInput('addVehicleCapacity', newVehicle.Capacity, 'number')) return;
+            newVehicle.Weight = parseFloat(newVehicle.Weight);
+            newVehicle.Capacity = parseInt(newVehicle.Capacity);
             const jData = await InvokeRequest({
                 cmd: 'AddVehicle',
                 Data: newVehicle
@@ -271,6 +283,7 @@
 
         async function handleDeleteVehicle() {
             const vehicleId = document.getElementById('deleteVehicleId').value;
+            if (!validateInput('deleteVehicleId', vehicleId)) return;
             const jData = await InvokeRequest({
                 cmd: 'DeleteVehicle',
                 VehicleID: vehicleId
@@ -278,43 +291,68 @@
             showResult(jData);
         }
 
-        // 结果展示函数
+
         function showResult(jData) {
             const resultBox = document.getElementById('resultBox');
             if (jData.statuses === "Success") {
                 resultBox.textContent = `success: ${jData.message || ''}`;
                 resultBox.style.color = 'green';
-                GetVehicles(); // 刷新车辆列表
+                GetVehicles();
             } else {
-                resultBox.textContent = `fail: ${jData.message || 'unexpected err'}`;
+                resultBox.textContent = `fail: ${jData.message || jData.error || 'unexpected error'}`;
                 resultBox.style.color = 'red';
             }
         }
 
-        // 获取车辆列表
+
         async function GetVehicles() {
             const jData = await InvokeRequest({ cmd: 'GetVehicles' });
-            if (jData.statuses === "Success") {
-                const container = document.getElementById('vehicleList');
-                container.innerHTML = '';
+            const container = document.getElementById('vehicleList');
+            container.innerHTML = '';
+
+            if (jData.statuses === "Success" && jData.Data && jData.Data.length > 0) {
                 jData.Data.forEach(vehicle => {
                     container.innerHTML += `
-                    <div class="status-card">
-                        <h3>${vehicle.Name}</h3>
-                        <p>Type: ${vehicle.Type}</p>
-                        <p>Location: ${vehicle.Location}</p>
-                        <p>Brand: ${vehicle.Brand}</p>
-                        <p>Model: ${vehicle.Model}</p>
-                        <p>Weight: ${vehicle.Weight}kg</p>
-                        <p>License: ${vehicle.LicensePlate}</p>
-                        <p>Capacity: ${vehicle.MaxCapacity}人</p>
-                    </div>
-                `;
+                        <div class="status-card">
+                            <h3>${vehicle.Name} (ID: ${vehicle.VehicleID})</h3>
+                            <p>Type: ${vehicle.Type}</p>
+                            <p>Location: ${vehicle.Location}</p>
+                            <p>Brand: ${vehicle.Brand}</p>
+                            <p>Model: ${vehicle.Model}</p>
+                            <p>Weight: ${vehicle.Weight} kg</p>
+                            <p>License Plate: ${vehicle.LicensePlate}</p>
+                            <p>Max Capacity: ${vehicle.MaxCapacity} persons</p>
+                        </div>
+                    `;
                 });
+            } else {
+                container.innerHTML = '<div class="status-card">No vehicles available</div>';
             }
         }
 
-        // 初始化时获取车辆列表
+        async function InvokeRequest(data, timeout = 5000) {
+            const apiUrl = 'http://192.168.0.1/api';
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                    signal: controller.signal
+                });
+                const result = await response.json();
+                clearTimeout(timeoutId);
+                return result;
+            } catch (error) {
+                return {
+                    statuses: error.name === "AbortError" ? "Timeout" : "Fail",
+                    message: error.name === "AbortError" ? "Request timed out" : "Network error"
+                };
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', function () {
             GetVehicles();
         });
