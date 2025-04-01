@@ -76,7 +76,7 @@
             max-width: 500px;
         }
 
-        /* 输入框样式 */
+
         .input-field {
             flex: 1;
             padding: 8px 12px;
@@ -85,7 +85,7 @@
             font-size: 14px;
         }
 
-        /* 按钮样式 */
+
         .submit-btn {
             background-color: #2196F3;
             color: white;
@@ -193,13 +193,12 @@
     </div>
 
     <script>
-        // 添加列表项函数（修改后）
+        // 添加列表项函数
         async function addListItem(text = -1) {
             const input = document.getElementById('itemInput');
             const listContainer = document.getElementById('listContent');
             let content = text === -1 ? input.value.trim() : text;
 
-            // 输入验证
             if (content === "") {
                 alert('Please input valid data');
                 input.focus();
@@ -207,11 +206,9 @@
             }
 
             try {
-                // 先进行服务端添加
                 const addSuccess = await AddPeople(content);
                 if (!addSuccess) return false;
 
-                // 更新UI
                 if (listContainer.querySelector('.empty-state')) {
                     listContainer.innerHTML = '';
                 }
@@ -232,17 +229,15 @@
             }
         }
 
-        // 删除行函数（优化后）
+        // 删除列表项函数
         async function deleteListItem(button) {
             const item = button.closest('.list-item');
             const content = item.querySelector('span').textContent;
 
             try {
-                // 先执行服务端删除
                 const deleteSuccess = await DelPeople(content);
                 if (!deleteSuccess) return;
 
-                // 更新UI
                 item.remove();
                 const listContainer = document.getElementById('listContent');
                 if (listContainer.children.length === 0) {
@@ -253,15 +248,17 @@
             }
         }
 
+        // 获取人员列表
         async function GetListOfPeople() {
             try {
                 const rJson = await InvokeRequest({ cmd: "GetListOfPeople" });
 
-                if (rJson.statuses === "Success") {
+                // 后端返回格式：{"data": "name1|name2|name3"}
+                if (rJson.data) {
                     const listContainer = document.getElementById('listContent');
                     listContainer.innerHTML = '';
 
-                    if (!rJson.data || rJson.data === "") {
+                    if (rJson.data === "") {
                         listContainer.innerHTML = '<div class="empty-state">No item yet</div>';
                         return;
                     }
@@ -269,17 +266,16 @@
                     const TArray = rJson.data.split("|");
                     for (const x of TArray) {
                         if (x.trim()) {
-                            await addListItem(x.trim());
+                            await addListItem(x.trim()); // 使用addListItem添加，避免重复逻辑
                         }
                     }
-                } else {
-                    handleError(rJson.statuses, 'get List Of People');
                 }
             } catch (error) {
                 console.error('Get list failed:', error);
             }
         }
 
+        // 添加人员
         async function AddPeople(content) {
             try {
                 const rJson = await InvokeRequest({
@@ -287,10 +283,11 @@
                     Name: content
                 });
 
+                // 后端返回格式：{"statuses": "Success"} 或 {"statuses": "Fail"}
                 if (rJson.statuses === "Success") {
                     return true;
                 }
-                handleError(rJson.statuses, 'add people');
+                handleError(rJson.statuses || 'Fail', 'add people');
                 return false;
             } catch (error) {
                 console.error('Add failed:', error);
@@ -298,6 +295,7 @@
             }
         }
 
+        // 删除人员
         async function DelPeople(content) {
             try {
                 const rJson = await InvokeRequest({
@@ -305,10 +303,11 @@
                     Name: content
                 });
 
+                // 后端返回格式：{"statuses": "Success"} 或 {"statuses": "Fail"}
                 if (rJson.statuses === "Success") {
                     return true;
                 }
-                handleError(rJson.statuses, 'delete people');
+                handleError(rJson.statuses || 'Fail', 'delete people');
                 return false;
             } catch (error) {
                 console.error('Delete failed:', error);
@@ -316,16 +315,17 @@
             }
         }
 
+        // 错误处理
         function handleError(status, operation) {
             const messageMap = {
                 Timeout: `Operation timeout: ${operation}`,
                 Fail: `Operation failed: ${operation}`,
                 default: `Unknown error: ${operation}`
             };
-
             alert(messageMap[status] || messageMap.default);
         }
 
+        // 发送请求
         async function InvokeRequest(data, timeout = 5000) {
             const apiUrl = 'http://192.168.0.1/api';
             const controller = new AbortController();
