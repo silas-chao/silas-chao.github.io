@@ -1,4 +1,5 @@
 // Updated Code; 1933 lines; Lines 175-1842 deal with HTML; All other lines deal with sensors
+// Be sure to include ArduinoJson and DFRobot_BMI160 libraries through the UPRESSY extension
 
 #include <Wire.h>
 #include <WebServer.h>
