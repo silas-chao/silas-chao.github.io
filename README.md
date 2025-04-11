@@ -6,7 +6,7 @@ Our lovely team members!: <br/>
  3. HTML design: Eric
  4. Github: Silas
 
-Blueprint(Alex put it here):
+Blueprint:
 
 Purpose:
 
