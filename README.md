@@ -7,6 +7,7 @@ Our lovely team members!: <br/>
  4. Github: Silas
 
 Blueprint:
+![image](https://github.com/user-attachments/assets/8a6ea6aa-5271-4500-989c-a093de2437ca)
 
 Purpose:
 
